@@ -4,34 +4,39 @@
     "name": "Bulbasaur",
     "set": "Base Set",
     "number": "1",
-    "rarity": "Common"
+    "rarity": "Common",
+    "image": "https://images.pokemontcg.io/base1/1.png"
   },
   {
     "id": "base-004",
     "name": "Charmander",
     "set": "Base Set",
     "number": "4",
-    "rarity": "Common"
+    "rarity": "Common",
+    "image": "https://images.pokemontcg.io/base1/4.png"
   },
   {
     "id": "base-007",
     "name": "Squirtle",
     "set": "Base Set",
     "number": "7",
-    "rarity": "Common"
+    "rarity": "Common",
+    "image": "https://images.pokemontcg.io/base1/7.png"
   },
   {
     "id": "base-025",
     "name": "Pikachu",
     "set": "Base Set",
     "number": "25",
-    "rarity": "Common"
+    "rarity": "Common",
+    "image": "https://images.pokemontcg.io/base1/25.png"
   },
   {
     "id": "base-006",
     "name": "Charizard",
     "set": "Base Set",
     "number": "6",
-    "rarity": "Rare Holo"
+    "rarity": "Rare Holo",
+    "image": "https://images.pokemontcg.io/base1/6.png"
   }
 ]
