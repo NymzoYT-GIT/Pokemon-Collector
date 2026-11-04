@@ -13,6 +13,7 @@ let player = null;
 let playerCoins = 0;
 let playerCards = [];
 let playerBinders = [];
+let loadingUserId = null;
 
 const navigation = [
   { id: "home", icon: "🏠", label: "Home" },
@@ -213,25 +214,11 @@ function showLogin() {
       <div class="auth-form">
         <h2>Sign In</h2>
 
-        <input
-          type="email"
-          id="auth-email"
-          placeholder="Email address"
-        >
+        <input type="email" id="auth-email" placeholder="Email address">
+        <input type="password" id="auth-password" placeholder="Password">
 
-        <input
-          type="password"
-          id="auth-password"
-          placeholder="Password"
-        >
-
-        <button class="primary-button" onclick="login()">
-          SIGN IN
-        </button>
-
-        <button class="secondary-button" onclick="signup()">
-          CREATE ACCOUNT
-        </button>
+        <button class="primary-button" onclick="login()">SIGN IN</button>
+        <button class="secondary-button" onclick="signup()">CREATE ACCOUNT</button>
 
         <p id="auth-message"></p>
       </div>
@@ -287,19 +274,14 @@ async function login() {
   message.textContent = "Signing in...";
 
   try {
-    const { data, error } = await supabase.auth.signInWithPassword({
+    const { error } = await supabase.auth.signInWithPassword({
       email,
       password
     });
 
     if (error) {
       message.textContent = error.message;
-      return;
     }
-
-    player = data.user;
-    currentPage = "home";
-    render();
   } catch (error) {
     message.textContent = "Connection error. Please try again.";
   }
@@ -315,10 +297,65 @@ async function logout() {
     }
 
     player = null;
+    playerCoins = 0;
+    playerCards = [];
+    playerBinders = [];
     currentPage = "home";
     render();
   } catch (error) {
     alert("Unable to sign out. Please try again.");
+  }
+}
+
+async function loadPlayerData() {
+  if (!player || loadingUserId === player.id) return;
+
+  const userId = player.id;
+  loadingUserId = userId;
+
+  try {
+    const [walletResult, cardsResult, bindersResult] = await Promise.all([
+      supabase
+        .from("player_wallets")
+        .select("coins")
+        .eq("user_id", userId)
+        .maybeSingle(),
+
+      supabase
+        .from("player_cards")
+        .select("card_id, quantity")
+        .eq("user_id", userId),
+
+      supabase
+        .from("binders")
+        .select("*")
+        .eq("user_id", userId)
+    ]);
+
+    if (walletResult.error || cardsResult.error || bindersResult.error) {
+      console.error("Cloud data loading error:", {
+        wallet: walletResult.error,
+        cards: cardsResult.error,
+        binders: bindersResult.error
+      });
+
+      return;
+    }
+
+    if (!player || player.id !== userId) return;
+
+    playerCoins = walletResult.data?.coins ?? 0;
+    playerCards = cardsResult.data ?? [];
+    playerBinders = bindersResult.data ?? [];
+
+    console.log("Player cloud data loaded!");
+    render();
+  } catch (error) {
+    console.error("Cloud data loading failed:", error);
+  } finally {
+    if (loadingUserId === userId) {
+      loadingUserId = null;
+    }
   }
 }
 
@@ -330,6 +367,21 @@ window.logout = logout;
 
 supabase.auth.onAuthStateChange((event, session) => {
   player = session?.user ?? null;
+
+  if (player) {
+    const userId = player.id;
+    setTimeout(() => {
+      if (player && player.id === userId) {
+        loadPlayerData();
+      }
+    }, 0);
+  } else {
+    playerCoins = 0;
+    playerCards = [];
+    playerBinders = [];
+    loadingUserId = null;
+  }
+
   render();
 });
 
