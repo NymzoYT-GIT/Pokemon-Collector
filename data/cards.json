@@ -1,0 +1,37 @@
+[
+  {
+    "id": "base-001",
+    "name": "Bulbasaur",
+    "set": "Base Set",
+    "number": "1",
+    "rarity": "Common"
+  },
+  {
+    "id": "base-004",
+    "name": "Charmander",
+    "set": "Base Set",
+    "number": "4",
+    "rarity": "Common"
+  },
+  {
+    "id": "base-007",
+    "name": "Squirtle",
+    "set": "Base Set",
+    "number": "7",
+    "rarity": "Common"
+  },
+  {
+    "id": "base-025",
+    "name": "Pikachu",
+    "set": "Base Set",
+    "number": "25",
+    "rarity": "Common"
+  },
+  {
+    "id": "base-006",
+    "name": "Charizard",
+    "set": "Base Set",
+    "number": "6",
+    "rarity": "Rare Holo"
+  }
+]
