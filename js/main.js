@@ -214,6 +214,14 @@ function renderPage() {
         <div class="card-grid">
           ${getFilteredCards().map(card => `
             <article class="tcg-card">
+              <img
+                class="card-image"
+                src="${escapeHTML(card.image || "")}"
+                alt="${escapeHTML(card.name)}"
+                loading="lazy"
+                onerror="this.alt='Card image unavailable';this.style.display='none'"
+              >
+
               <div class="tcg-card-info">
                 <h3>${escapeHTML(card.name)}</h3>
                 <p>${escapeHTML(card.set)}</p>
