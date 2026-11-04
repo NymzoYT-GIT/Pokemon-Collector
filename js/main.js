@@ -225,6 +225,11 @@ window.showLogin = showLogin;
 window.signup = signup;
 window.login = login;
 
+supabase.auth.onAuthStateChange((event, session) => {
+  player = session?.user ?? null;
+  render();
+});
+
 render();
 
 console.log("Pokémon Collector initialized!");
