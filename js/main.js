@@ -287,6 +287,7 @@ function filterCards(value) {
   renderPage();
 }
 
+
 async function loadCardDatabase() {
   if (cardsLoading) return;
 
@@ -300,8 +301,18 @@ async function loadCardDatabase() {
       fetch(`${API_URL}/sets?orderBy=-releaseDate`)
     ]);
 
-    if (!cardsResponse.ok || !setsResponse.ok) {
-      throw new Error("The card database API returned an error.");
+    if (!cardsResponse.ok) {
+      const details = await cardsResponse.text();
+      throw new Error(
+        `Cards API error ${cardsResponse.status}: ${details.slice(0, 300)}`
+      );
+    }
+
+    if (!setsResponse.ok) {
+      const details = await setsResponse.text();
+      throw new Error(
+        `Sets API error ${setsResponse.status}: ${details.slice(0, 300)}`
+      );
     }
 
     const [cardsData, setsData] = await Promise.all([
@@ -313,17 +324,18 @@ async function loadCardDatabase() {
     tcgSets = setsData.data || [];
 
     if (tcgCards.length === 0) {
-      throw new Error("No cards were returned by the API.");
+      throw new Error("The API returned zero cards.");
     }
+
   } catch (error) {
     console.error("Card database error:", error);
-    cardsError = error.message ||
-      "Could not connect to the card database.";
+    cardsError = error.message || "Unknown API error.";
   } finally {
     cardsLoading = false;
     renderPage();
   }
 }
+
 
 function showLogin() {
   const content = document.getElementById("page-content");
