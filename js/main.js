@@ -27,8 +27,10 @@ function render() {
   app.innerHTML = `
     <header class="app-header">
       <div class="logo">POKÉMON COLLECTOR</div>
+
       <div class="header-right">
         <div class="currency">🪙 ${playerCoins}</div>
+
         <button class="profile-button" onclick="showLogin()">
           👤 ${player ? "Account" : "Sign In"}
         </button>
@@ -38,12 +40,16 @@ function render() {
     <div class="main-layout">
       <aside class="sidebar">
         ${navigation.map(item => `
-          <button class="nav-button ${currentPage === item.id ? "active" : ""}" onclick="navigate('${item.id}')">
+          <button
+            class="nav-button ${currentPage === item.id ? "active" : ""}"
+            onclick="navigate('${item.id}')"
+          >
             <span>${item.icon}</span>
             ${item.label}
           </button>
         `).join("")}
       </aside>
+
       <main class="content" id="page-content"></main>
     </div>
   `;
@@ -68,8 +74,13 @@ function renderPage() {
 
       <section class="featured">
         <h2>Discover Your Next Favorite Card</h2>
-        <p>Open booster packs, discover rare Pokémon, complete sets and build your ultimate collection.</p>
-        <button class="primary-button" onclick="navigate('packs')">EXPLORE PACKS</button>
+        <p>
+          Open booster packs, discover rare Pokémon,
+          complete sets and build your ultimate collection.
+        </p>
+        <button class="primary-button" onclick="navigate('packs')">
+          EXPLORE PACKS
+        </button>
       </section>
 
       <h2 class="section-title">Your Collection</h2>
@@ -79,10 +90,12 @@ function renderPage() {
           <span>Cards Collected</span>
           <h3>${playerCards.reduce((total, card) => total + card.quantity, 0)}</h3>
         </div>
+
         <div class="stat-card">
           <span>Sets Completed</span>
           <h3>0</h3>
         </div>
+
         <div class="stat-card">
           <span>Binders Created</span>
           <h3>${playerBinders.length}</h3>
@@ -95,7 +108,10 @@ function renderPage() {
 
     packs: `
       <h1 class="page-title">Booster Packs</h1>
-      <p class="page-description">Choose a booster pack to discover new Pokémon cards.</p>
+      <p class="page-description">
+        Choose a booster pack to discover new Pokémon cards.
+      </p>
+
       <div class="empty-card">
         <h2>🎴 Pack Opening Coming Soon</h2>
         <p>Our booster pack system is being developed.</p>
@@ -104,13 +120,21 @@ function renderPage() {
 
     collection: `
       <h1 class="page-title">My Collection</h1>
-      <p class="page-description">Every card you discover will be stored here.</p>
-      <div class="empty-card">You haven't discovered any cards yet.</div>
+      <p class="page-description">
+        Every card you discover will be stored here.
+      </p>
+
+      <div class="empty-card">
+        You haven't discovered any cards yet.
+      </div>
     `,
 
     binders: `
       <h1 class="page-title">My Binders</h1>
-      <p class="page-description">Organize your favorite cards into beautiful binders.</p>
+      <p class="page-description">
+        Organize your favorite cards into beautiful binders.
+      </p>
+
       <div class="empty-card">
         <h2>📖 Your Binders</h2>
         <p>Binder creation is coming soon.</p>
@@ -119,13 +143,21 @@ function renderPage() {
 
     pokedex: `
       <h1 class="page-title">Pokédex</h1>
-      <p class="page-description">Track all the Pokémon you discover.</p>
-      <div class="empty-card">Your Pokédex is waiting to be filled!</div>
+      <p class="page-description">
+        Track all the Pokémon you discover.
+      </p>
+
+      <div class="empty-card">
+        Your Pokédex is waiting to be filled!
+      </div>
     `,
 
     shop: `
       <h1 class="page-title">Collector Shop</h1>
-      <p class="page-description">Purchase packs and collection accessories.</p>
+      <p class="page-description">
+        Purchase packs and collection accessories.
+      </p>
+
       <div class="empty-card">
         <h2>🛒 Shop Coming Soon</h2>
         <p>The shop and currency system are coming soon.</p>
@@ -139,6 +171,40 @@ function renderPage() {
 function showLogin() {
   const content = document.getElementById("page-content");
 
+  if (player) {
+    const account = document.createElement("section");
+    account.className = "auth-container";
+
+    const title = document.createElement("h1");
+    title.textContent = "My Account";
+
+    const welcome = document.createElement("p");
+    welcome.textContent = "Welcome to Pokémon Collector!";
+
+    const form = document.createElement("div");
+    form.className = "auth-form";
+
+    const heading = document.createElement("h2");
+    heading.textContent = "Account Details";
+
+    const email = document.createElement("p");
+    email.textContent = "Email: " + (player.email || "Unavailable");
+
+    const status = document.createElement("p");
+    status.textContent = "Status: Signed In";
+
+    const button = document.createElement("button");
+    button.className = "secondary-button";
+    button.textContent = "SIGN OUT";
+    button.onclick = logout;
+
+    form.append(heading, email, status, button);
+    account.append(title, welcome, form);
+
+    content.replaceChildren(account);
+    return;
+  }
+
   content.innerHTML = `
     <section class="auth-container">
       <h1>Welcome to Pokémon Collector</h1>
@@ -147,8 +213,17 @@ function showLogin() {
       <div class="auth-form">
         <h2>Sign In</h2>
 
-        <input type="email" id="auth-email" placeholder="Email address">
-        <input type="password" id="auth-password" placeholder="Password">
+        <input
+          type="email"
+          id="auth-email"
+          placeholder="Email address"
+        >
+
+        <input
+          type="password"
+          id="auth-password"
+          placeholder="Password"
+        >
 
         <button class="primary-button" onclick="login()">
           SIGN IN
@@ -181,17 +256,22 @@ async function signup() {
 
   message.textContent = "Creating your account...";
 
-  const { error } = await supabase.auth.signUp({
-    email,
-    password
-  });
+  try {
+    const { error } = await supabase.auth.signUp({
+      email,
+      password
+    });
 
-  if (error) {
-    message.textContent = error.message;
-    return;
+    if (error) {
+      message.textContent = error.message;
+      return;
+    }
+
+    message.textContent =
+      "Account created! Check your email to verify your account.";
+  } catch (error) {
+    message.textContent = "Connection error. Please try again.";
   }
-
-  message.textContent = "Account created! Check your email to verify your account.";
 }
 
 async function login() {
@@ -206,24 +286,47 @@ async function login() {
 
   message.textContent = "Signing in...";
 
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email,
-    password
-  });
+  try {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password
+    });
 
-  if (error) {
-    message.textContent = error.message;
-    return;
+    if (error) {
+      message.textContent = error.message;
+      return;
+    }
+
+    player = data.user;
+    currentPage = "home";
+    render();
+  } catch (error) {
+    message.textContent = "Connection error. Please try again.";
   }
+}
 
-  player = data.user;
-  render();
+async function logout() {
+  try {
+    const { error } = await supabase.auth.signOut();
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    player = null;
+    currentPage = "home";
+    render();
+  } catch (error) {
+    alert("Unable to sign out. Please try again.");
+  }
 }
 
 window.navigate = navigate;
 window.showLogin = showLogin;
 window.signup = signup;
 window.login = login;
+window.logout = logout;
 
 supabase.auth.onAuthStateChange((event, session) => {
   player = session?.user ?? null;
