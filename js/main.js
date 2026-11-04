@@ -1,3 +1,4 @@
+
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const SUPABASE_URL = "https://jxvcekteoituffhkqrrl.supabase.co";
@@ -146,17 +147,8 @@ function showLogin() {
       <div class="auth-form">
         <h2>Sign In</h2>
 
-        <input
-          type="email"
-          id="auth-email"
-          placeholder="Email address"
-        >
-
-        <input
-          type="password"
-          id="auth-password"
-          placeholder="Password"
-        >
+        <input type="email" id="auth-email" placeholder="Email address">
+        <input type="password" id="auth-password" placeholder="Password">
 
         <button class="primary-button" onclick="login()">
           SIGN IN
@@ -173,7 +165,7 @@ function showLogin() {
 }
 
 async function signup() {
-  const email = document.getElementById("auth-email").value;
+  const email = document.getElementById("auth-email").value.trim();
   const password = document.getElementById("auth-password").value;
   const message = document.getElementById("auth-message");
 
@@ -182,8 +174,28 @@ async function signup() {
     return;
   }
 
+  if (password.length < 8) {
+    message.textContent = "Password must be at least 8 characters.";
+    return;
+  }
+
+  message.textContent = "Creating your account...";
+
+  const { error } = await supabase.auth.signUp({
+    email,
+    password
+  });
+
+  if (error) {
+    message.textContent = error.message;
+    return;
+  }
+
+  message.textContent = "Account created! Check your email to verify your account.";
+}
+
 async function login() {
-  const email = document.getElementById("auth-email").value;
+  const email = document.getElementById("auth-email").value.trim();
   const password = document.getElementById("auth-password").value;
   const message = document.getElementById("auth-message");
 
@@ -205,37 +217,13 @@ async function login() {
   }
 
   player = data.user;
-  message.textContent = "Login successful!";
-
   render();
 }
 
-window.login = login;
-  
-  if (password.length < 8) {
-    message.textContent = "Password must be at least 8 characters.";
-    return;
-  }
-
-  message.textContent = "Creating your account...";
-
-  const { error } = await supabase.auth.signUp({
-    email,
-    password
-  });
-
-  if (error) {
-    message.textContent = error.message;
-    return;
-  }
-
-  message.textContent = "Account created! Check your email to verify your account.";
-}
-
-window.signup = signup;
-
 window.navigate = navigate;
 window.showLogin = showLogin;
+window.signup = signup;
+window.login = login;
 
 render();
 
