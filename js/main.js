@@ -136,8 +136,103 @@ function renderPage() {
 }
 
 function showLogin() {
-  alert("Registration and login are our next development milestone!");
+  const content = document.getElementById("page-content");
+
+  content.innerHTML = `
+    <section class="auth-container">
+      <h1>Welcome to Pokémon Collector</h1>
+      <p>Sign in or create your collector account.</p>
+
+      <div class="auth-form">
+        <h2>Sign In</h2>
+
+        <input
+          type="email"
+          id="auth-email"
+          placeholder="Email address"
+        >
+
+        <input
+          type="password"
+          id="auth-password"
+          placeholder="Password"
+        >
+
+        <button class="primary-button" onclick="login()">
+          SIGN IN
+        </button>
+
+        <button class="secondary-button" onclick="signup()">
+          CREATE ACCOUNT
+        </button>
+
+        <p id="auth-message"></p>
+      </div>
+    </section>
+  `;
 }
+
+async function signup() {
+  const email = document.getElementById("auth-email").value;
+  const password = document.getElementById("auth-password").value;
+  const message = document.getElementById("auth-message");
+
+  if (!email || !password) {
+    message.textContent = "Enter your email and password.";
+    return;
+  }
+
+async function login() {
+  const email = document.getElementById("auth-email").value;
+  const password = document.getElementById("auth-password").value;
+  const message = document.getElementById("auth-message");
+
+  if (!email || !password) {
+    message.textContent = "Enter your email and password.";
+    return;
+  }
+
+  message.textContent = "Signing in...";
+
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password
+  });
+
+  if (error) {
+    message.textContent = error.message;
+    return;
+  }
+
+  player = data.user;
+  message.textContent = "Login successful!";
+
+  render();
+}
+
+window.login = login;
+  
+  if (password.length < 8) {
+    message.textContent = "Password must be at least 8 characters.";
+    return;
+  }
+
+  message.textContent = "Creating your account...";
+
+  const { error } = await supabase.auth.signUp({
+    email,
+    password
+  });
+
+  if (error) {
+    message.textContent = error.message;
+    return;
+  }
+
+  message.textContent = "Account created! Check your email to verify your account.";
+}
+
+window.signup = signup;
 
 window.navigate = navigate;
 window.showLogin = showLogin;
