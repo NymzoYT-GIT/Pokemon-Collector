@@ -1,4 +1,3 @@
-
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const SUPABASE_URL = "https://jxvcekteoituffhkqrrl.supabase.co";
@@ -7,7 +6,6 @@ const SUPABASE_KEY = "sb_publishable_dzLwqnhBtnIRf5Mct3qxkQ_ZW-Pr68m";
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const app = document.getElementById("app");
-const API_URL = "https://api.pokemontcg.io/v2";
 
 let currentPage = "home";
 let player = null;
@@ -17,7 +15,6 @@ let playerBinders = [];
 let loadingUserId = null;
 
 let tcgCards = [];
-let tcgSets = [];
 let cardsLoading = false;
 let cardsError = "";
 let searchText = "";
@@ -171,7 +168,7 @@ function renderPage() {
     database: `
       <h1 class="page-title">Pokémon TCG Card Database</h1>
       <p class="page-description">
-        Browse real Pokémon Trading Card Game cards and sets.
+        Browse your locally hosted Pokémon card database.
       </p>
 
       <div class="database-controls">
@@ -185,12 +182,13 @@ function renderPage() {
 
         <select id="set-filter" onchange="filterCards(this.value)">
           <option value="all">All Sets</option>
-          ${tcgSets.map(set => `
-            <option value="${escapeHTML(set.id)}"
-              ${selectedSet === set.id ? "selected" : ""}>
-              ${escapeHTML(set.name)}
-            </option>
-          `).join("")}
+          ${[...new Set(tcgCards.map(card => card.set))]
+            .map(set => `
+              <option value="${escapeHTML(set)}"
+                ${selectedSet === set ? "selected" : ""}>
+                ${escapeHTML(set)}
+              </option>
+            `).join("")}
         </select>
       </div>
 
@@ -212,20 +210,15 @@ function renderPage() {
         <p class="page-description">
           Showing ${getFilteredCards().length} cards
         </p>
+
         <div class="card-grid">
           ${getFilteredCards().map(card => `
             <article class="tcg-card">
-              <img
-                src="${escapeHTML(card.images?.small || "")}"
-                alt="${escapeHTML(card.name)}"
-                loading="lazy"
-                onerror="this.style.display='none'"
-              >
               <div class="tcg-card-info">
                 <h3>${escapeHTML(card.name)}</h3>
-                <p>${escapeHTML(card.set?.name || "Unknown set")}</p>
-                <p>${escapeHTML(card.number || "")}</p>
-                <p>${escapeHTML(card.rarity || "Rarity unknown")}</p>
+                <p>${escapeHTML(card.set)}</p>
+                <p>Card #${escapeHTML(card.number)}</p>
+                <p>${escapeHTML(card.rarity)}</p>
               </div>
             </article>
           `).join("")}
@@ -236,8 +229,12 @@ function renderPage() {
 
   content.innerHTML = pages[currentPage] || pages.home;
 
-  if (currentPage === "database" && !cardsLoading &&
-      tcgCards.length === 0 && !cardsError) {
+  if (
+    currentPage === "database" &&
+    !cardsLoading &&
+    tcgCards.length === 0 &&
+    !cardsError
+  ) {
     loadCardDatabase();
   }
 }
@@ -259,12 +256,12 @@ function getFilteredCards() {
     const matchesSearch =
       !query ||
       card.name?.toLowerCase().includes(query) ||
-      card.number?.toLowerCase().includes(query) ||
+      String(card.number).toLowerCase().includes(query) ||
       card.rarity?.toLowerCase().includes(query) ||
-      card.set?.name?.toLowerCase().includes(query);
+      card.set?.toLowerCase().includes(query);
 
     const matchesSet =
-      selectedSet === "all" || card.set?.id === selectedSet;
+      selectedSet === "all" || card.set === selectedSet;
 
     return matchesSearch && matchesSet;
   });
@@ -272,13 +269,17 @@ function getFilteredCards() {
 
 function searchCards(value) {
   searchText = value;
-  const position = document.getElementById("card-search")?.selectionStart;
-  renderPage();
 
   const search = document.getElementById("card-search");
-  if (search) {
-    search.focus();
-    search.setSelectionRange(position, position);
+  const position = search?.selectionStart ?? value.length;
+
+  renderPage();
+
+  const newSearch = document.getElementById("card-search");
+
+  if (newSearch) {
+    newSearch.focus();
+    newSearch.setSelectionRange(position, position);
   }
 }
 
@@ -286,7 +287,6 @@ function filterCards(value) {
   selectedSet = value;
   renderPage();
 }
-
 
 async function loadCardDatabase() {
   if (cardsLoading) return;
@@ -296,46 +296,28 @@ async function loadCardDatabase() {
   renderPage();
 
   try {
-    const [cardsResponse, setsResponse] = await Promise.all([
-      fetch(`${API_URL}/cards?pageSize=250&orderBy=name`),
-      fetch(`${API_URL}/sets?orderBy=-releaseDate`)
-    ]);
+    const response = await fetch("./data/cards.json");
 
-    if (!cardsResponse.ok) {
-      const details = await cardsResponse.text();
-      throw new Error(
-        `Cards API error ${cardsResponse.status}: ${details.slice(0, 300)}`
-      );
+    if (!response.ok) {
+      throw new Error(`Card file error: HTTP ${response.status}`);
     }
 
-    if (!setsResponse.ok) {
-      const details = await setsResponse.text();
-      throw new Error(
-        `Sets API error ${setsResponse.status}: ${details.slice(0, 300)}`
-      );
+    const data = await response.json();
+
+    if (!Array.isArray(data)) {
+      throw new Error("The card database format is invalid.");
     }
 
-    const [cardsData, setsData] = await Promise.all([
-      cardsResponse.json(),
-      setsResponse.json()
-    ]);
-
-    tcgCards = cardsData.data || [];
-    tcgSets = setsData.data || [];
-
-    if (tcgCards.length === 0) {
-      throw new Error("The API returned zero cards.");
-    }
+    tcgCards = data;
 
   } catch (error) {
     console.error("Card database error:", error);
-    cardsError = error.message || "Unknown API error.";
+    cardsError = error.message || "Unable to load local cards.";
   } finally {
     cardsLoading = false;
     renderPage();
   }
 }
-
 
 function showLogin() {
   const content = document.getElementById("page-content");
