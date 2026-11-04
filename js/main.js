@@ -7,6 +7,7 @@ const SUPABASE_KEY = "sb_publishable_dzLwqnhBtnIRf5Mct3qxkQ_ZW-Pr68m";
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const app = document.getElementById("app");
+const API_URL = "https://api.pokemontcg.io/v2";
 
 let currentPage = "home";
 let player = null;
@@ -15,23 +16,29 @@ let playerCards = [];
 let playerBinders = [];
 let loadingUserId = null;
 
+let tcgCards = [];
+let tcgSets = [];
+let cardsLoading = false;
+let cardsError = "";
+let searchText = "";
+let selectedSet = "all";
+
 const navigation = [
   { id: "home", icon: "🏠", label: "Home" },
   { id: "packs", icon: "🎴", label: "Open Packs" },
   { id: "collection", icon: "📚", label: "Collection" },
   { id: "binders", icon: "📖", label: "Binders" },
   { id: "pokedex", icon: "🔴", label: "Pokédex" },
-  { id: "shop", icon: "🛒", label: "Shop" }
+  { id: "shop", icon: "🛒", label: "Shop" },
+  { id: "database", icon: "🗂️", label: "Card Database" }
 ];
 
 function render() {
   app.innerHTML = `
     <header class="app-header">
       <div class="logo">POKÉMON COLLECTOR</div>
-
       <div class="header-right">
         <div class="currency">🪙 ${playerCoins}</div>
-
         <button class="profile-button" onclick="showLogin()">
           👤 ${player ? "Account" : "Sign In"}
         </button>
@@ -82,6 +89,9 @@ function renderPage() {
         <button class="primary-button" onclick="navigate('packs')">
           EXPLORE PACKS
         </button>
+        <button class="secondary-button" onclick="navigate('database')">
+          EXPLORE CARD DATABASE
+        </button>
       </section>
 
       <h2 class="section-title">Your Collection</h2>
@@ -91,12 +101,10 @@ function renderPage() {
           <span>Cards Collected</span>
           <h3>${playerCards.reduce((total, card) => total + card.quantity, 0)}</h3>
         </div>
-
         <div class="stat-card">
           <span>Sets Completed</span>
           <h3>0</h3>
         </div>
-
         <div class="stat-card">
           <span>Binders Created</span>
           <h3>${playerBinders.length}</h3>
@@ -112,7 +120,6 @@ function renderPage() {
       <p class="page-description">
         Choose a booster pack to discover new Pokémon cards.
       </p>
-
       <div class="empty-card">
         <h2>🎴 Pack Opening Coming Soon</h2>
         <p>Our booster pack system is being developed.</p>
@@ -124,7 +131,6 @@ function renderPage() {
       <p class="page-description">
         Every card you discover will be stored here.
       </p>
-
       <div class="empty-card">
         You haven't discovered any cards yet.
       </div>
@@ -135,7 +141,6 @@ function renderPage() {
       <p class="page-description">
         Organize your favorite cards into beautiful binders.
       </p>
-
       <div class="empty-card">
         <h2>📖 Your Binders</h2>
         <p>Binder creation is coming soon.</p>
@@ -147,7 +152,6 @@ function renderPage() {
       <p class="page-description">
         Track all the Pokémon you discover.
       </p>
-
       <div class="empty-card">
         Your Pokédex is waiting to be filled!
       </div>
@@ -158,15 +162,167 @@ function renderPage() {
       <p class="page-description">
         Purchase packs and collection accessories.
       </p>
-
       <div class="empty-card">
         <h2>🛒 Shop Coming Soon</h2>
         <p>The shop and currency system are coming soon.</p>
       </div>
+    `,
+
+    database: `
+      <h1 class="page-title">Pokémon TCG Card Database</h1>
+      <p class="page-description">
+        Browse real Pokémon Trading Card Game cards and sets.
+      </p>
+
+      <div class="database-controls">
+        <input
+          id="card-search"
+          type="search"
+          placeholder="Search Pokémon, card names, or numbers..."
+          value="${escapeHTML(searchText)}"
+          oninput="searchCards(this.value)"
+        >
+
+        <select id="set-filter" onchange="filterCards(this.value)">
+          <option value="all">All Sets</option>
+          ${tcgSets.map(set => `
+            <option value="${escapeHTML(set.id)}"
+              ${selectedSet === set.id ? "selected" : ""}>
+              ${escapeHTML(set.name)}
+            </option>
+          `).join("")}
+        </select>
+      </div>
+
+      ${cardsLoading ? `
+        <div class="empty-card">Loading Pokémon cards...</div>
+      ` : ""}
+
+      ${cardsError ? `
+        <div class="empty-card">
+          <h2>Unable to load cards</h2>
+          <p>${escapeHTML(cardsError)}</p>
+          <button class="primary-button" onclick="loadCardDatabase()">
+            TRY AGAIN
+          </button>
+        </div>
+      ` : ""}
+
+      ${!cardsLoading && !cardsError ? `
+        <p class="page-description">
+          Showing ${getFilteredCards().length} cards
+        </p>
+        <div class="card-grid">
+          ${getFilteredCards().map(card => `
+            <article class="tcg-card">
+              <img
+                src="${escapeHTML(card.images?.small || "")}"
+                alt="${escapeHTML(card.name)}"
+                loading="lazy"
+                onerror="this.style.display='none'"
+              >
+              <div class="tcg-card-info">
+                <h3>${escapeHTML(card.name)}</h3>
+                <p>${escapeHTML(card.set?.name || "Unknown set")}</p>
+                <p>${escapeHTML(card.number || "")}</p>
+                <p>${escapeHTML(card.rarity || "Rarity unknown")}</p>
+              </div>
+            </article>
+          `).join("")}
+        </div>
+      ` : ""}
     `
   };
 
   content.innerHTML = pages[currentPage] || pages.home;
+
+  if (currentPage === "database" && !cardsLoading &&
+      tcgCards.length === 0 && !cardsError) {
+    loadCardDatabase();
+  }
+}
+
+function escapeHTML(value) {
+  return String(value ?? "").replace(/[&<>"']/g, character => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#039;"
+  })[character]);
+}
+
+function getFilteredCards() {
+  const query = searchText.trim().toLowerCase();
+
+  return tcgCards.filter(card => {
+    const matchesSearch =
+      !query ||
+      card.name?.toLowerCase().includes(query) ||
+      card.number?.toLowerCase().includes(query) ||
+      card.rarity?.toLowerCase().includes(query) ||
+      card.set?.name?.toLowerCase().includes(query);
+
+    const matchesSet =
+      selectedSet === "all" || card.set?.id === selectedSet;
+
+    return matchesSearch && matchesSet;
+  });
+}
+
+function searchCards(value) {
+  searchText = value;
+  const position = document.getElementById("card-search")?.selectionStart;
+  renderPage();
+
+  const search = document.getElementById("card-search");
+  if (search) {
+    search.focus();
+    search.setSelectionRange(position, position);
+  }
+}
+
+function filterCards(value) {
+  selectedSet = value;
+  renderPage();
+}
+
+async function loadCardDatabase() {
+  if (cardsLoading) return;
+
+  cardsLoading = true;
+  cardsError = "";
+  renderPage();
+
+  try {
+    const [cardsResponse, setsResponse] = await Promise.all([
+      fetch(`${API_URL}/cards?pageSize=250&orderBy=name`),
+      fetch(`${API_URL}/sets?orderBy=-releaseDate`)
+    ]);
+
+    if (!cardsResponse.ok || !setsResponse.ok) {
+      throw new Error("The card database API returned an error.");
+    }
+
+    const [cardsData, setsData] = await Promise.all([
+      cardsResponse.json(),
+      setsResponse.json()
+    ]);
+
+    tcgCards = cardsData.data || [];
+    tcgSets = setsData.data || [];
+
+    if (tcgCards.length === 0) {
+      throw new Error("No cards were returned by the API.");
+    }
+  } catch (error) {
+    console.error("Card database error:", error);
+    cardsError = error.message ||
+      "Could not connect to the card database.";
+  } finally {
+    cardsLoading = false;
+    renderPage();
+  }
 }
 
 function showLogin() {
@@ -201,7 +357,6 @@ function showLogin() {
 
     form.append(heading, email, status, button);
     account.append(title, welcome, form);
-
     content.replaceChildren(account);
     return;
   }
@@ -213,13 +368,10 @@ function showLogin() {
 
       <div class="auth-form">
         <h2>Sign In</h2>
-
         <input type="email" id="auth-email" placeholder="Email address">
         <input type="password" id="auth-password" placeholder="Password">
-
         <button class="primary-button" onclick="login()">SIGN IN</button>
         <button class="secondary-button" onclick="signup()">CREATE ACCOUNT</button>
-
         <p id="auth-message"></p>
       </div>
     </section>
@@ -244,10 +396,7 @@ async function signup() {
   message.textContent = "Creating your account...";
 
   try {
-    const { error } = await supabase.auth.signUp({
-      email,
-      password
-    });
+    const { error } = await supabase.auth.signUp({ email, password });
 
     if (error) {
       message.textContent = error.message;
@@ -279,9 +428,7 @@ async function login() {
       password
     });
 
-    if (error) {
-      message.textContent = error.message;
-    }
+    if (error) message.textContent = error.message;
   } catch (error) {
     message.textContent = "Connection error. Please try again.";
   }
@@ -315,19 +462,16 @@ async function loadPlayerData() {
 
   try {
     const [walletResult, cardsResult, bindersResult] = await Promise.all([
-      supabase
-        .from("player_wallets")
+      supabase.from("player_wallets")
         .select("coins")
         .eq("user_id", userId)
         .maybeSingle(),
 
-      supabase
-        .from("player_cards")
+      supabase.from("player_cards")
         .select("card_id, quantity")
         .eq("user_id", userId),
 
-      supabase
-        .from("binders")
+      supabase.from("binders")
         .select("*")
         .eq("user_id", userId)
     ]);
@@ -338,7 +482,6 @@ async function loadPlayerData() {
         cards: cardsResult.error,
         binders: bindersResult.error
       });
-
       return;
     }
 
@@ -348,14 +491,11 @@ async function loadPlayerData() {
     playerCards = cardsResult.data ?? [];
     playerBinders = bindersResult.data ?? [];
 
-    console.log("Player cloud data loaded!");
     render();
   } catch (error) {
     console.error("Cloud data loading failed:", error);
   } finally {
-    if (loadingUserId === userId) {
-      loadingUserId = null;
-    }
+    if (loadingUserId === userId) loadingUserId = null;
   }
 }
 
@@ -364,6 +504,9 @@ window.showLogin = showLogin;
 window.signup = signup;
 window.login = login;
 window.logout = logout;
+window.searchCards = searchCards;
+window.filterCards = filterCards;
+window.loadCardDatabase = loadCardDatabase;
 
 supabase.auth.onAuthStateChange((event, session) => {
   player = session?.user ?? null;
@@ -371,9 +514,7 @@ supabase.auth.onAuthStateChange((event, session) => {
   if (player) {
     const userId = player.id;
     setTimeout(() => {
-      if (player && player.id === userId) {
-        loadPlayerData();
-      }
+      if (player && player.id === userId) loadPlayerData();
     }, 0);
   } else {
     playerCoins = 0;
